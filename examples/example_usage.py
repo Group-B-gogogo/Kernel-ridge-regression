@@ -1,0 +1,80 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from kernel_ridge import KernelRidge
+
+# 设置随机种子，确保结果可复现
+np.random.seed(42)
+
+def generate_nonlinear_data():
+    """生成非线性数据用于演示"""
+    # 生成输入特征
+    X = np.linspace(0, 10, 100).reshape(-1, 1)
+    
+    # 生成带有噪声的非线性目标值
+    y = np.sin(X).ravel() + 0.3 * np.random.randn(100)
+    
+    return X, y
+
+def plot_results(X, y, X_test, y_pred, y_true):
+    """绘制训练数据、预测结果和真实曲线"""
+    plt.figure(figsize=(10, 6))
+    plt.scatter(X, y, c='blue', alpha=0.5, label='训练数据')
+    plt.plot(X_test, y_pred, 'r-', linewidth=2, label='核岭回归预测')
+    plt.plot(X_test, y_true, 'g--', linewidth=2, label='真实曲线')
+    plt.xlabel('X')
+    plt.ylabel('y')
+    plt.title('核岭回归非线性拟合示例')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+def compare_kernels(X, y, X_test, y_true):
+    """比较不同核函数的效果"""
+    kernels = ['linear', 'poly', 'rbf', 'sigmoid']
+    plt.figure(figsize=(12, 10))
+    
+    for i, kernel in enumerate(kernels, 1):
+        # 初始化并训练模型
+        if kernel == 'poly':
+            kr = KernelRidge(kernel=kernel, alpha=0.1, degree=3, gamma=0.1)
+        else:
+            kr = KernelRidge(kernel=kernel, alpha=0.1, gamma=0.1)
+        
+        kr.fit(X, y)
+        y_pred = kr.predict(X_test)
+        
+        # 绘制结果
+        plt.subplot(2, 2, i)
+        plt.scatter(X, y, c='blue', alpha=0.5, s=30)
+        plt.plot(X_test, y_pred, 'r-', linewidth=2)
+        plt.plot(X_test, y_true, 'g--', linewidth=2)
+        plt.title(f'{kernel} kernel')
+        plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.show()
+
+def main():
+    # 生成数据
+    X, y = generate_nonlinear_data()
+    
+    # 创建测试数据
+    X_test = np.linspace(0, 10, 200).reshape(-1, 1)
+    y_true = np.sin(X_test).ravel()  # 真实函数
+    
+    # 使用RBF核的核岭回归
+    kr = KernelRidge(kernel='rbf', alpha=0.1, gamma=0.5)
+    kr.fit(X, y)
+    y_pred = kr.predict(X_test)
+    
+    # 打印模型信息
+    print("训练的模型:", kr)
+    
+    # 绘制结果
+    plot_results(X, y, X_test, y_pred, y_true)
+    
+    # 比较不同核函数
+    compare_kernels(X, y, X_test, y_true)
+
+if __name__ == "__main__":
+    main()
