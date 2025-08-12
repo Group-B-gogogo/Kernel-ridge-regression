@@ -1,0 +1,43 @@
+# Python字节码文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 分布/打包
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 环境
+.env
+.venv
+venv/
+ENV/
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
