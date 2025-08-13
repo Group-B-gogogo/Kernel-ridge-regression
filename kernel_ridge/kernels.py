@@ -74,15 +74,16 @@ def rbf_kernel(X, Y=None, gamma=None,** kwargs):
     if gamma is None:
         gamma = 1.0 / n_features
     
-    # 计算||X - Y||^2
-    # 使用广播机制优化计算
-    K = np.sum(X**2, axis=1)[:, np.newaxis]
-    K += np.sum(Y**2, axis=1)
-    K -= 2 * np.dot(X, Y.T)
+    # # 计算||X - Y||^2
+    # # 使用广播机制优化计算
+    # K = np.sum(X**2, axis=1)[:, np.newaxis]
+    # K += np.sum(Y**2, axis=1)[:, np.newaxis]
+    # K -= 2 * np.dot(X, Y.T)
     
-    # 应用RBF公式
-    K *= -gamma
-    np.exp(K, out=K)  # 原地计算指数，节省内存
+    # # 应用RBF公式
+    # K *= -gamma
+    # np.exp(K, out=K)  # 原地计算指数，节省内存
+    K = np.exp(-gamma * (np.sum(X**2, axis=1)[:, np.newaxis] + np.sum(Y**2, axis=1) - 2 * np.dot(X, Y.T)))
     
     return K
 

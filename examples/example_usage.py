@@ -1,29 +1,34 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+sys.path.append("D:\\german\\Kernel-ridge-regression")
 from kernel_ridge import KernelRidge
 
 # 设置随机种子，确保结果可复现
-np.random.seed(42)
+np.random.seed(1002)
+
+num_samples = 1000
 
 def generate_nonlinear_data():
     """生成非线性数据用于演示"""
+
     # 生成输入特征
-    X = np.linspace(0, 10, 100).reshape(-1, 1)
+    X = np.linspace(0, 20, num_samples).reshape(-1, 1)
     
     # 生成带有噪声的非线性目标值
-    y = np.sin(X).ravel() + 0.3 * np.random.randn(100)
+    y = np.sin(X).ravel() + 0.3 * np.random.randn(num_samples)
     
     return X, y
 
 def plot_results(X, y, X_test, y_pred, y_true):
     """绘制训练数据、预测结果和真实曲线"""
     plt.figure(figsize=(10, 6))
-    plt.scatter(X, y, c='blue', alpha=0.5, label='训练数据')
-    plt.plot(X_test, y_pred, 'r-', linewidth=2, label='核岭回归预测')
-    plt.plot(X_test, y_true, 'g--', linewidth=2, label='真实曲线')
+    plt.scatter(X, y, c='blue', alpha=0.45, s=15, label='Training data')
+    plt.plot(X_test, y_pred, 'r-', linewidth=2, label='Nuclear ridge regression prediction')
+    plt.plot(X_test, y_true, 'g--', linewidth=2, label='True value curve')
     plt.xlabel('X')
     plt.ylabel('y')
-    plt.title('核岭回归非线性拟合示例')
+    plt.title('Example of Nonlinear Fitting with Kernel Ridge Regression')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
@@ -45,9 +50,9 @@ def compare_kernels(X, y, X_test, y_true):
         
         # 绘制结果
         plt.subplot(2, 2, i)
-        plt.scatter(X, y, c='blue', alpha=0.5, s=30)
-        plt.plot(X_test, y_pred, 'r-', linewidth=2)
-        plt.plot(X_test, y_true, 'g--', linewidth=2)
+        plt.scatter(X, y, c='blue', alpha=0.5, s=15, label='training data')
+        plt.plot(X_test, y_pred, 'r-', linewidth=2, label='Nuclear ridge regression prediction')
+        plt.plot(X_test, y_true, 'g--', linewidth=2, label='True value curve')
         plt.title(f'{kernel} kernel')
         plt.grid(True, alpha=0.3)
     
@@ -59,7 +64,7 @@ def main():
     X, y = generate_nonlinear_data()
     
     # 创建测试数据
-    X_test = np.linspace(0, 10, 200).reshape(-1, 1)
+    X_test = np.linspace(0, 20, num_samples).reshape(-1, 1)
     y_true = np.sin(X_test).ravel()  # 真实函数
     
     # 使用RBF核的核岭回归
@@ -68,7 +73,7 @@ def main():
     y_pred = kr.predict(X_test)
     
     # 打印模型信息
-    print("训练的模型:", kr)
+    print("The trained model:", kr)
     
     # 绘制结果
     plot_results(X, y, X_test, y_pred, y_true)
