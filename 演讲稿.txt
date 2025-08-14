@@ -1,0 +1,100 @@
+好的，那我帮你把演讲稿压缩整合成**3个大部分**，中英文双语呈现，同时保留你代码里的核心内容，方便在课堂上讲解。
+
+---
+
+## 核岭回归课堂演讲稿（3部分）
+
+**Kernel Ridge Regression Class Presentation (3 Sections)**
+
+---
+
+### 第一部分：概述与原理
+
+**Part 1: Overview & Principle**
+
+**中文：**
+大家好，今天我们分享的主题是**核岭回归（Kernel Ridge Regression, KRR）**。
+KRR结合了两种思想：
+
+1. **岭回归（Ridge Regression）** —— 在线性回归中加入L2正则化，防止过拟合。
+2. **核方法（Kernel Method）** —— 通过核函数将输入映射到高维空间，从而处理非线性问题。
+
+在数学形式上，KRR的优化目标为：
+
+$$
+\min_{\alpha} \| y - K \alpha \|^2 + \lambda \alpha^T K \alpha
+$$
+
+其中 $K$ 为核矩阵，$\lambda$ 为正则化参数。
+
+**English:**
+Hello everyone, today’s topic is **Kernel Ridge Regression (KRR)**.
+KRR combines two concepts:
+
+1. **Ridge Regression** — adds L2 regularization to linear regression to prevent overfitting.
+2. **Kernel Method** — uses kernel functions to map inputs into high-dimensional space, enabling nonlinear modeling.
+
+Mathematically, KRR solves:
+
+$$
+\min_{\alpha} \| y - K \alpha \|^2 + \lambda \alpha^T K \alpha
+$$
+
+where $K$ is the kernel matrix, and $\lambda$ is the regularization parameter.
+
+---
+
+### 第二部分：实现与核心模块
+
+**Part 2: Implementation & Core Modules**
+
+**中文：**
+我们的实现由三个主要文件组成：
+
+1. **`kernels.py`** — 定义了4种核函数：线性核、RBF核、多项式核、Sigmoid核。
+2. **`kernel_ridge.py`** — 核心类 `KernelRidge`，包含：
+
+   * `fit(X, y)`：计算核矩阵并求解对偶系数。
+   * `predict(X)`：利用核矩阵与对偶系数进行预测。
+3. **`example_usage.py`** — 演示如何生成非线性数据、训练模型、绘图以及比较不同核函数的效果。
+
+**English:**
+Our implementation has three main files:
+
+1. **`kernels.py`** — Defines four kernels: linear, RBF, polynomial, and sigmoid.
+2. **`kernel_ridge.py`** — Core class `KernelRidge`, with:
+
+   * `fit(X, y)`: Computes the kernel matrix and solves for dual coefficients.
+   * `predict(X)`: Predicts using the kernel matrix and dual coefficients.
+3. **`example_usage.py`** — Demonstrates nonlinear data generation, model training, plotting, and kernel comparison.
+
+---
+
+### 第三部分：实验与总结
+
+**Part 3: Experiments & Conclusion**
+
+**中文：**
+实验部分（`example_usage.py`）：
+
+* 生成数据：$y = \sin(x) + \text{噪声}$。
+* 用RBF核训练模型，结果显示拟合曲线能够贴近真实曲线。
+* 比较线性核、多项式核、RBF核、Sigmoid核，发现不同核对非线性问题的拟合能力差异显著。
+
+总结：
+核岭回归既有非线性建模能力，又能通过正则化避免过拟合，适合函数拟合、时间序列预测等场景。
+
+**English:**
+Experiments (`example_usage.py`):
+
+* Data: $y = \sin(x) + \text{noise}$.
+* Model trained with RBF kernel fits the true curve closely.
+* Comparing linear, polynomial, RBF, and sigmoid kernels shows that kernels differ greatly in their ability to fit nonlinear patterns.
+
+Conclusion:
+KRR combines nonlinear modeling with regularization, making it suitable for function fitting, time series forecasting, and more.
+
+---
+
+我可以帮你把这3个部分直接转成**课堂PPT提纲**，并配上你代码生成的拟合图，这样视觉效果会更好。
+你要我帮你做PPT提纲版吗？这样直接就能上课用。
