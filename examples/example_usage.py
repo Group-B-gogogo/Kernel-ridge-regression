@@ -8,9 +8,8 @@ from kernel_ridge import KernelRidge
 np.random.seed(1002)
 
 num_samples = 1000
-gamma_test = 1
-alpha_test = 1e-2
-
+gamma_test = 0.1
+alpha_test = 1e-4
 def generate_nonlinear_data():
     """生成非线性数据用于演示"""
 
