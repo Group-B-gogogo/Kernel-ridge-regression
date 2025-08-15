@@ -8,8 +8,8 @@ from kernel_ridge import KernelRidge
 np.random.seed(1002)
 
 num_samples = 1000
-gamma_test = 0.1
-alpha_test = 1e-4
+gamma_test = 1
+alpha_test = 1e-2
 
 def generate_nonlinear_data():
     """生成非线性数据用于演示"""
@@ -26,7 +26,7 @@ def plot_results(X, y, X_test, y_pred, y_true):
     """绘制训练数据、预测结果和真实曲线"""
     plt.figure(figsize=(10, 6))
     plt.scatter(X, y, c='blue', alpha=0.45, s=15, label='Training data')
-    plt.plot(X_test, y_pred, 'r-', linewidth=2, label='Nuclear ridge regression prediction')
+    plt.plot(X_test, y_pred, 'r-', linewidth=2, label=f'Nuclear ridge regression prediction,alpha={alpha_test}, gamma={gamma_test}')
     plt.plot(X_test, y_true, 'g--', linewidth=2, label='True value curve')
     plt.xlabel('X')
     plt.ylabel('y')
@@ -81,7 +81,7 @@ def main():
     plot_results(X, y, X_test, y_pred, y_true)
     
     # 比较不同核函数
-    compare_kernels(X, y, X_test, y_true)
+    #compare_kernels(X, y, X_test, y_true)
 
 if __name__ == "__main__":
     main()
