@@ -8,6 +8,8 @@ from kernel_ridge import KernelRidge
 np.random.seed(1002)
 
 num_samples = 1000
+gamma_test = 0.1
+alpha_test = 1e-4
 
 def generate_nonlinear_data():
     """生成非线性数据用于演示"""
@@ -41,9 +43,9 @@ def compare_kernels(X, y, X_test, y_true):
     for i, kernel in enumerate(kernels, 1):
         # 初始化并训练模型
         if kernel == 'poly':
-            kr = KernelRidge(kernel=kernel, alpha=0.1, degree=3, gamma=0.1)
+            kr = KernelRidge(kernel=kernel, alpha=alpha_test, degree=3, gamma=gamma_test)
         else:
-            kr = KernelRidge(kernel=kernel, alpha=0.1, gamma=0.1)
+            kr = KernelRidge(kernel=kernel, alpha=alpha_test, gamma=gamma_test)
         
         kr.fit(X, y)
         y_pred = kr.predict(X_test)
@@ -68,7 +70,7 @@ def main():
     y_true = np.sin(X_test).ravel()  # 真实函数
     
     # 使用RBF核的核岭回归
-    kr = KernelRidge(kernel='rbf', alpha=0.1, gamma=0.5)
+    kr = KernelRidge(kernel='rbf', alpha=alpha_test, gamma=gamma_test)
     kr.fit(X, y)
     y_pred = kr.predict(X_test)
     
