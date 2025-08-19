@@ -3,3 +3,11 @@ scipy           # >=1.5.0
 scikit-learn    # >=0.24.0
 pytest          # >=6.0.0
 matplotlib      # >=3.3.0
+matplotlib
+jupyterlab
+notebook
+ipywidgets
+seaborn
+pandas
+jax
+requests
