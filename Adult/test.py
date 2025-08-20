@@ -1,6 +1,10 @@
+# %pip install pandas
+# %pip install seaborn
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import seaborn as sns
 from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
 from sklearn.compose import ColumnTransformer
@@ -19,9 +23,10 @@ sns.set_style("whitegrid")
 def main():
     # 1. 配置路径 (Configure paths)
     # 数据集路径 - 可根据实际情况修改 (Dataset path - modify as needed)
-    data_path = os.path.join("Adult", "adult", "adult.data")
+    # data_path = os.path.join("Adult", "adult", "adult.data")
+    data_path = r"D:\\german\\Kernel-ridge-regression\\Adult\\adult\\adult.data"
     # 结果保存根路径 (Root path for saving results)
-    results_root = r"D:\german\Kernel-ridge-regression\Adult\results"
+    results_root = r"D:\\german\\Kernel-ridge-regression\Adult\\results"
     # 创建结果目录（包括子目录）(Create result directories including subdirectories)
     model_dir = os.path.join(results_root, "models")
     figures_dir = os.path.join(results_root, "figures")
@@ -228,9 +233,21 @@ def main():
         'Predicted Income': sample_pred  # 预测收入
     })
     print(result_df)
+    path = "D:\\german\\Kernel-ridge-regression\\Adult\\results\\figures\\"
+    img = mpimg.imread(path + "age_vs_income.png")  # 读取图片
+    plt.imshow(img)  # 显示图片数据
+    img = mpimg.imread(path + "confusion_matrix.png")  # 读取图片
+    plt.imshow(img)  # 显示图片数据
+    img = mpimg.imread(path + "feature_importance.png")  # 读取图片
+    plt.imshow(img)  # 显示图片数据
+    img = mpimg.imread(path + "income_distribution.png")  # 读取图片
+    plt.imshow(img)  # 显示图片数据
+    img = mpimg.imread(path + "roc_curve.png")  # 读取图片
+    plt.imshow(img)  # 显示图片数据
 
 if __name__ == "__main__":
     main()
+    
     
 
 
