@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>按重要性排序的中英文双语期末复习计划生成工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* 基础样式：护眼浅绿底色，重要性颜色标注 */
+        body { background-color: #f0fdf4; font-family: "Microsoft YaHei", Arial, sans-serif; }
+        .btn { padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; border: none; }
+        .btn-primary { background-color: #22c55e; color: white; }
+        .btn-primary:hover { background-color: #16a34a; }
+        .btn-lang { position: fixed; top: 20px; right: 20px; background-color: #e5e7eb; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input, select { padding: 10px; width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid #d1d5db; }
+        .plan-result { margin-top: 30px; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .day-card { margin: 15px 0; padding: 15px; border-left: 4px solid #22c55e; background-color: #f9fafb; }
+        /* 重要性颜色：高=红，中=黑，低=灰 */
+        .priority-high { color: #dc2626; font-weight: bold; } /* 高重要性（高频考点） */
+        .priority-middle { color: #1f2937; } /* 中重要性（基础必学） */
+        .priority-low { color: #6b7280; } /* 低重要性（拓展内容） */
+    </style>
+</head>
+<body>
+    <!-- 双语切换按钮 -->
+    <button class="btn btn-lang" id="langSwitch">Switch to English</button>
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <!-- 标题（双语动态切换） -->
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8" data-zh="按重要性排序的中英文双语期末复习计划工具" data-en="Priority-Sorted Bilingual Final Exam Study Plan Generator">
+            按重要性排序的中英文双语期末复习计划工具
+        </h1>
+        <!-- 输入表单 -->
+        <div class="form-container">
+            <!-- 复习天数输入 -->
+            <div class="form-group">
+                <label for="studyDays" data-zh="复习总天数（1-14天）" data-en="Total Study Days (1-14 days)">
+                    复习总天数（1-14天）
+                </label>
+                <input type="number" id="studyDays" min="1" max="14" placeholder="请输入1-14之间的数字" data-zh-placeholder="请输入1-14之间的数字" data-en-placeholder="Enter a number between 1-14">
+            </div>
+            <!-- 科目选择（内置4科，双语选项） -->
+            <div class="form-group">
+                <label for="subjects" data-zh="选择复习科目（可多选）" data-en="Select Subjects (Multiple Selection)">
+                    选择复习科目（可多选）
+                </label>
+                <select id="subjects" multiple size="4" data-zh-placeholder="按住Ctrl键多选" data-en-placeholder="Hold Ctrl to select multiple">
+                    <option value="math" data-zh="高等数学" data-en="Advanced Mathematics">高等数学</option>
+                    <option value="english" data-zh="大学英语" data-en="College English">大学英语</option>
+                    <option value="physics" data-zh="大学物理" data-en="College Physics">大学物理</option>
+                    <option value="cpp" data-zh="计算机C++" data-en="Computer C++">计算机C++</option>
+                </select>
+            </div>
+            <!-- 生成/下载按钮 -->
+            <div class="flex gap-4 flex-wrap">
+                <button class="btn btn-primary" id="generatePlan" data-zh="生成复习计划" data-en="Generate Study Plan">
+                    生成复习计划
+                </button>
+                <button class="btn btn-primary" id="downloadPDF" data-zh="下载PDF计划" data-en="Download PDF Plan" disabled>
+                    下载PDF计划
+                </button>
+                <button class="btn btn-primary" id="copyPlan" data-zh="复制每日清单" data-en="Copy Daily List" disabled>
+                    复制每日清单
+                </button>
+            </div>
+        </div>
+        <!-- 计划结果展示区（新增重要性说明） -->
+        <div class="plan-result" id="planResult" style="display: none;">
+            <h2 class="text-2xl font-bold mb-4" data-zh="你的个性化复习计划（按重要性排序）" data-en="Your Personalized Study Plan (Sorted by Priority)">
+                你的个性化复习计划（按重要性排序）
+            </h2>
+            <!-- 重要性图例 -->
+            <div class="mb-4 text-sm" data-zh="重要性说明：" data-en="Priority Legend:">
+                重要性说明： 
+                <span class="priority-high">● 高（高频考点/提分关键）</span> | 
+                <span class="priority-middle">● 中（基础必学）</span> | 
+                <span class="priority-low">● 低（拓展内容，时间紧张可略过）</span>
+            </div>
+            <div id="planContent"></div> <!-- 计划内容动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        // 1. 优化：双语数据新增【重要性权重】（high=高，middle=中，low=低）
+        const langData = {
+            subjects: {
+                math: {
+                    zh: "高等数学",
+                    en: "Advanced Mathematics",
+                    knowledge: [
+                        { 
+                            zh: "积分（重点，40%时长）", 
+                            en: "Integration (Key, 40% Time)",
+                            priority: "high" // 高重要性（考试高频大题）
+                        },
+                        { 
+                            zh: "极限与导数（基础，30%时长）", 
+                            en: "Limits & Derivatives (Basic, 30% Time)",
+                            priority: "middle" // 中重要性（选择填空基础）
+                        },
+                        { 
+                            zh: "微分方程（难点，20%时长）", 
+                            en: "Differential Equations (Difficult, 20% Time)",
+                            priority: "middle" // 中重要性（中档大题）
+                        },
+                        { 
+                            zh: "错题复盘（巩固，10%时长）", 
+                            en: "Mistake Review (Consolidation, 10% Time)",
+                            priority: "low" // 低重要性（时间够再做）
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 5] : [2, 2]
+                },
+                english: {
+                    zh: "大学英语",
+                    en: "College English",
+                    knowledge: [
+                        { 
+                            zh: "作文模板（提分快，35%时长）", 
+                            en: "Essay Templates (Quick Score, 35% Time)",
+                            priority: "high" // 高重要性（主观题占分高）
+                        },
+                        { 
+                            zh: "阅读技巧（高频题，30%时长）", 
+                            en: "Reading Skills (High-Frequency, 30% Time)",
+                            priority: "high" // 高重要性（客观题占分最高）
+                        },
+                        { 
+                            zh: "听力高频词（基础，20%时长）", 
+                            en: "Listening High-Frequency Words (Basic, 20% Time)",
+                            priority: "middle" // 中重要性（听力保底分）
+                        },
+                        { 
+                            zh: "翻译句型（应用，15%时长）", 
+                            en: "Translation Sentence Patterns (Application, 15% Time)",
+                            priority: "low" // 低重要性（占分少，时间紧可略过）
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [2, 3] : [1, 1]
+                },
+                physics: {
+                    zh: "大学物理",
+                    en: "College Physics",
+                    knowledge: [
+                        { 
+                            zh: "力学（公式多，40%时长）", 
+                            en: "Mechanics (Many Formulas, 40% Time)",
+                            priority: "high" // 高重要性（大题必考）
+                        },
+                        { 
+                            zh: "电磁学（难点，35%时长）", 
+                            en: "Electromagnetism (Difficult, 35% Time)",
+                            priority: "middle" // 中重要性（部分大题+选择）
+                        },
+                        { 
+                            zh: "波动光学（基础，15%时长）", 
+                            en: "Wave Optics (Basic, 15% Time)",
+                            priority: "low" // 低重要性（选择填空少量）
+                        },
+                        { 
+                            zh: "实验题思路（应用，10%时长）", 
+                            en: "Experimental Problem Ideas (Application, 10% Time)",
+                            priority: "low" // 低重要性（时间够再准备）
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 4] : [2, 2]
+                },
+                cpp: {
+                    zh: "计算机C++",
+                    en: "Computer C++",
+                    knowledge: [
+                        { 
+                            zh: "函数与指针（重点，35%时长）", 
+                            en: "Functions & Pointers (Key, 35% Time)",
+                            priority: "high" // 高重要性（编程大题核心）
+                        },
+                        { 
+                            zh: "编程题刷题（高频题型，30%时长）", 
+                            en: "Programming Problems (High-Frequency, 30% Time)",
+                            priority: "high" // 高重要性（直接提分）
+                        },
+                        { 
+                            zh: "语法基础（变量/循环，25%时长）", 
+                            en: "Syntax Basics (Variables/Loops, 25% Time)",
+                            priority: "middle" // 中重要性（选择填空基础）
+                        },
+                        { 
+                            zh: "代码调试技巧（实用，10%时长）", 
+                            en: "Code Debugging Skills (Practical, 10% Time)",
+                            priority: "low" // 低重要性（时间紧可略过）
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 4] : [2, 2]
+                }
+            },
+            timeSlots: [
+                { zh: "09:00 - 11:30", en: "09:00 - 11:30" },
+                { zh: "14:00 - 16:30", en: "14:00 - 16:30" },
+                { zh: "19:00 - 21:00", en: "19:00 - 21:00" }
+            ]
+        };
+
+        // 2. 全局状态：当前语言（默认中文）
+        let currentLang = "zh";
+
+        // 3. 双语切换函数（保留原功能）
+        function switchLang() {
+            currentLang = currentLang === "zh" ? "en" : "zh";
+            const langBtn = document.getElementById("langSwitch");
+            langBtn.textContent = currentLang === "zh" ? "Switch to English" : "切换到中文";
+            
+            // 切换所有双语文本
+            document.querySelectorAll("[data-zh], [data-en]").forEach(el => {
+                if (el.hasAttribute("data-zh") && el.hasAttribute("data-en")) {
+                    el.textContent = el.getAttribute(`data-${currentLang}`);
+                }
+                if (el.hasAttribute("data-zh-placeholder") && el.hasAttribute("data-en-placeholder")) {
+                    el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
+                }
+            });
+
+            // 重新渲染已生成的计划（同步双语+重要性）
+            const planResult = document.getElementById("planResult");
+            if (planResult.style.display !== "none") {
+                const studyDays = document.getElementById("studyDays").value;
+                const subjects = Array.from(document.getElementById("subjects").selectedOptions).map(opt => opt.value);
+                generatePlan(studyDays, subjects);
+            }
+        }
+
+        // 4. 核心优化：生成计划函数（按重要性筛选+排序）
+        function generatePlan(studyDays, subjects) {
+            if (!studyDays || subjects.length === 0) {
+                const alertMsg = currentLang === "zh" ? "请输入复习天数并选择至少一门科目！" : "Please enter study days and select at least one subject!";
+                alert(alertMsg);
+                return;
+            }
+            studyDays = parseInt(studyDays);
+            const planContent = document.getElementById("planContent");
+            planContent.innerHTML = "";
+
+            // 步骤1：计算每科分配的天数（保留难科多分配逻辑）
+            const subjectDays = {};
+            const totalSubjects = subjects.length;
+            const hardSubjects = ["math", "physics", "cpp"];
+            const baseDays = Math.floor(studyDays / totalSubjects);
+            let remainingDays = studyDays - (baseDays * totalSubjects);
+            
+            subjects.forEach(subj => {
+                subjectDays[subj] = baseDays;
+                if (remainingDays > 0 && hardSubjects.includes(subj)) {
+                    subjectDays[subj] += 1;
+                    remainingDays -= 1;
+                }
+            });
+
+            // 步骤2：按复习天数筛选知识点（核心优化：按重要性保留）
+            function getFilteredKnowledge(knowledgeList, days) {
+                // 规则：天数≥3天（充裕）→ 保留高+中+低；天数=2天（中等）→ 保留高+中；天数=1天（紧张）→ 只保留高
+                let priorityFilter = ["high", "middle", "low"]; // 默认全保留
+                if (days === 1) priorityFilter = ["high"];
+                if (days === 2) priorityFilter = ["high", "middle"];
+
+                // 筛选并按重要性排序（高→中→低）
+                return knowledgeList
+                    .filter(item => priorityFilter.includes(item.priority))
+                    .sort((a, b) => {
+                        const priorityOrder = { high: 0, middle: 1, low: 2 };
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    });
+            }
+
+            // 步骤3：生成每日计划（新增重要性样式）
+            let currentDay = 1;
+            subjects.forEach(subj => {
+                const days = subjectDays[subj];
+                const subjectInfo = langData.subjects[subj];
+                // 筛选出当前天数下需要学的知识点（按重要性）
+                const filteredKnowledge = getFilteredKnowledge(subjectInfo.knowledge, days);
+                const timeSlots = langData.timeSlots;
+                const knowledgePerDay = Math.ceil(filteredKnowledge.length / days);
+                let knowledgeIndex = 0;
+
+                for (let d = 0; d < days; d++) {
+                    if (currentDay > studyDays) break;
+
+                    // 每日卡片
+                    const dayCard = document.createElement("div");
+                    dayCard.className = "day-card";
+
+                    // 每日标题
+                    const dayTitle = document.createElement("h3");
+                    dayTitle.className = "text-xl font-semibold mb-2";
+                    dayTitle.textContent = currentLang === "zh" 
+                        ? `第${currentDay}天：${subjectInfo.zh}（共${days}天）` 
+                        : `Day ${currentDay}: ${subjectInfo.en} (Total ${days} Days)`;
+                    dayCard.appendChild(dayTitle);
+
+                    // 时段+知识点（新增重要性样式）
+                    const timeList = document.createElement("ul");
+                    timeList.className = "list-disc pl-5 space-y-2";
+
+                    timeSlots.forEach((slot, slotIdx) => {
+                        if (knowledgeIndex >= filteredKnowledge.length) knowledgeIndex = 0;
+                        const knowledge = filteredKnowledge[knowledgeIndex];
+                        const listItem = document.createElement("li");
+
+                        // 给知识点加重要性样式（高=红粗，中=黑，低=灰）
+                        listItem.className = `priority-${knowledge.priority}`;
+                        listItem.textContent = `${slot[currentLang]} - ${knowledge[currentLang]}`;
+
+                        timeList.appendChild(listItem);
+                        knowledgeIndex++;
+                    });
+
+                    dayCard.appendChild(timeList);
+                    planContent.appendChild(dayCard);
+                    currentDay++;
+                }
+            });
+
+            // 显示计划，启用按钮
+            document.getElementById("planResult").style.display = "block";
+            document.getElementById("downloadPDF").disabled = false;
+            document.getElementById("copyPlan").disabled = false;
+        }
+
+        // 5. 下载PDF函数（保留原功能，同步重要性颜色）
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF("portrait", "mm", "a4");
+            const planResult = document.getElementById("planResult");
+
+            html2canvas(planResult, { 
+                scale: 2, // 提高清晰度
+                useCORS: true 
+            }).then(canvas => {
+                const imgData = canvas.toDataURL("image/jpeg", 1.0);
+                const imgWidth = 210;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                // 处理长计划分页（新增：避免内容超出A4）
+                let heightLeft = imgHeight;
+                let position = 0;
+                doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+                heightLeft -= 297; // A4高度（mm）
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    doc.addPage();
+                    doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+                    heightLeft -= 297;
+                }
+
+                // 双语文件名
+                const fileName = currentLang === "zh" 
+                    ? `按重要性排序_期末复习计划_${new Date().toLocaleDateString()}.pdf` 
+                    : `Priority_Sorted_Final_Study_Plan_${new Date().toLocaleDateString()}.pdf`;
+                doc.save(fileName);
+            });
+        }
+
+        // 6. 复制计划函数（保留原功能，同步重要性说明）
+        function copyPlan() {
+            const planContent = document.getElementById("planContent");
+            const priorityLegend = currentLang === "zh" 
+                ? "重要性说明：高（红粗）=高频考点，中（黑）=基础必学，低（灰）=拓展内容\n\n" 
+                : "Priority Legend: High (Red Bold)=High-Frequency, Middle (Black)=Basic, Low (Gray)=Extended\n\n";
+            
+            let copyText = priorityLegend + (currentLang === "zh" 
+                ? `你的期末复习计划（共${document.getElementById("studyDays").value}天，按重要性排序）\n\n` 
+                : `Your Final Study Plan (Total ${document.getElementById("studyDays").value} Days, Sorted by Priority)\n\n`);
+
+            // 提取带重要性标记的文本
+            planContent.querySelectorAll(".day-card").forEach(card => {
+                copyText += card.querySelector("h3").textContent + "\n";
+                card.querySelectorAll("li").forEach(li => {
+                    // 给文本加重要性标记（如【高】【中】【低】）
+                    let priorityMark = "";
+                    if (li.classList.contains("priority-high")) priorityMark = currentLang === "zh" ? "【高】" : "[High] ";
+                    if (li.classList.contains("priority-middle")) priorityMark = currentLang === "zh" ? "【中】" : "[Middle] ";
+                    if (li.classList.contains("priority-low")) priorityMark = currentLang === "zh" ? "【低】" : "[Low] ";
+                    copyText += "- " + priorityMark + li.textContent + "\n";
+                });
+                copyText += "\n";
+            });
+
+            // 复制到剪贴板
+            navigator.clipboard.writeText(copyText).then(() => {
+                const successMsg = currentLang === "zh" ? "带重要性标记的每日清单已复制！" : "Daily list with priority marks copied!";
+                alert(successMsg);
+            }).catch(err => {
+                const errorMsg = currentLang === "zh" ? "复制失败，请手动复制！" : "Copy failed, please copy manually!";
+                alert(errorMsg);
+                console.error(err);
+            });
+        }
+
+        // 7. 绑定事件监听（保留原功能）
+        document.getElementById("langSwitch").addEventListener("click", switchLang);
+        document.getElementById("generatePlan").addEventListener("click", () => {
+            const studyDays = document.getElementById("studyDays").value;
+            const subjects = Array.from(document.getElementById("subjects").selectedOptions).map(opt => opt.value);
+            generatePlan(studyDays, subjects);
+        });
+        document.getElementById("downloadPDF").addEventListener("click", downloadPDF);
+        document.getElementById("copyPlan").addEventListener("click", copyPlan);
+    </script>
+</body>
+</html>
