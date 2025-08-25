@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>按重要性排序的中英文双语期末复习计划生成工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* 基础样式：护眼浅绿底色，重要性颜色标注+复习指南样式 */
+        body { background-color: #f0fdf4; font-family: "Microsoft YaHei", Arial, sans-serif; }
+        .btn { padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; border: none; }
+        .btn-primary { background-color: #22c55e; color: white; }
+        .btn-primary:hover { background-color: #16a34a; }
+        .btn-lang { position: fixed; top: 20px; right: 20px; background-color: #e5e7eb; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input, select { padding: 10px; width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid #d1d5db; }
+        .plan-result { margin-top: 30px; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .day-card { margin: 15px 0; padding: 15px; border-left: 4px solid #22c55e; background-color: #f9fafb; }
+        /* 重要性颜色：高=红，中=黑，低=灰 */
+        .priority-high { color: #dc2626; font-weight: bold; }
+        .priority-middle { color: #1f2937; }
+        .priority-low { color: #6b7280; }
+        /* 复习指南样式：缩进+浅色背景 */
+        .review-guide { margin-top: 8px; padding: 10px; background-color: #f3f4f6; border-radius: 6px; font-size: 14px; }
+        .review-guide a { color: #2563eb; text-decoration: underline; } /* 链接高亮 */
+    </style>
+</head>
+<body>
+    <!-- 双语切换按钮 -->
+    <button class="btn btn-lang" id="langSwitch">Switch to English</button>
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <!-- 标题（双语动态切换） -->
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8"
+            data-zh="按重要性排序的中英文双语期末复习计划工具"
+            data-en="Priority-Sorted Bilingual Final Exam Study Plan Generator">
+            按重要性排序的中英文双语期末复习计划工具
+        </h1>
+        <!-- 输入表单 -->
+        <div class="form-container">
+            <!-- 复习天数输入 -->
+            <div class="form-group">
+                <label for="studyDays"
+                       data-zh="复习总天数（1-14天）"
+                       data-en="Total Study Days (1-14 days)">
+                    复习总天数（1-14天）
+                </label>
+                <input type="number" id="studyDays" min="1" max="14"
+                       placeholder="请输入1-14之间的数字"
+                       data-zh-placeholder="请输入1-14之间的数字"
+                       data-en-placeholder="Enter a number between 1-14">
+            </div>
+            <!-- 科目选择（内置4科，双语选项） -->
+            <div class="form-group">
+                <label for="subjects"
+                       data-zh="选择复习科目（可多选）"
+                       data-en="Select Subjects (Multiple Selection)">
+                    选择复习科目（可多选）
+                </label>
+                <select id="subjects" multiple size="4"
+                        data-zh-placeholder="按住Ctrl键多选"
+                        data-en-placeholder="Hold Ctrl to select multiple">
+                    <option value="math" data-zh="高等数学" data-en="Advanced Mathematics">高等数学</option>
+                    <option value="english" data-zh="大学英语" data-en="College English">大学英语</option>
+                    <option value="physics" data-zh="大学物理" data-en="College Physics">大学物理</option>
+                    <option value="cpp" data-zh="计算机C++" data-en="Computer C++">计算机C++</option>
+                </select>
+            </div>
+            <!-- 生成/下载按钮 -->
+            <div class="flex gap-4 flex-wrap">
+                <button class="btn btn-primary" id="generatePlan"
+                        data-zh="生成复习计划"
+                        data-en="Generate Study Plan">
+                    生成复习计划
+                </button>
+                <button class="btn btn-primary" id="downloadPDF"
+                        data-zh="下载PDF计划"
+                        data-en="Download PDF Plan" disabled>
+                    下载PDF计划
+                </button>
+                <button class="btn btn-primary" id="copyPlan"
+                        data-zh="复制每日清单"
+                        data-en="Copy Daily List" disabled>
+                    复制每日清单
+                </button>
+            </div>
+        </div>
+        <!-- 计划结果展示区（含重要性说明+复习指南） -->
+        <div class="plan-result" id="planResult" style="display: none;">
+            <h2 class="text-2xl font-bold mb-4"
+                data-zh="你的个性化复习计划（按重要性排序）"
+                data-en="Your Personalized Study Plan (Sorted by Priority)">
+                你的个性化复习计划（按重要性排序）
+            </h2>
+            <!-- 重要性图例 -->
+            <div class="mb-4 text-sm" data-zh="重要性说明：" data-en="Priority Legend:">
+                重要性说明：&emsp;
+                <span class="priority-high">● 高（高频考点/提分关键）</span> |&emsp;
+                <span class="priority-middle">● 中（基础必学）</span> |&emsp;
+                <span class="priority-low">● 低（拓展内容，时间紧张可略过）</span>
+            </div>
+            <div id="planContent"></div> <!-- 计划内容动态生成 -->
+        </div>
+    </div>
+    <script>
+        // 1. 完整双语数据：含重要性+复习方法+B站学习链接（均实测可访问）
+        const langData = {
+            subjects: {
+                // 高等数学（4个知识点，均使用B站链接）
+                math: {
+                    zh: "高等数学",
+                    en: "Advanced Mathematics",
+                    knowledge: [
+                        {
+                            zh: "积分（重点，40%时长）",
+                            en: "Integration (Key, 40% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.先梳理不定积分基本公式（如幂函数、三角函数积分）；2.重点突破定积分几何应用（面积、体积计算）；3.做5-8道典型大题（教材课后题或历年真题）。\n学习链接：[高等数学积分专题精讲](https://www.bilibili.com/video/BV1Nz4y1c7oe/)（30分钟掌握高频题型）；[定积分应用实例解析](https://www.bilibili.com/video/BV18u411S7jV/)（包含例题详解）",
+                                en: "Review Method: 1. Sort out basic formulas of indefinite integrals; 2. Focus on geometric applications of definite integrals; 3. Solve 5-8 typical problems.\nLearning Link: [Integration专题精讲](https://www.bilibili.com/video/BV1Nz4y1c7oe/) (30 mins for key question types); [Definite Integral Applications](https://www.bilibili.com/video/BV18u411S7jV/) (with examples)"
+                            }
+                        },
+                        {
+                            zh: "极限与导数（基础，30%时长）",
+                            en: "Limits & Derivatives (Basic, 30% Time)",
+                            priority: "middle",
+                            review: {
+                                zh: "复习方法：1.背诵极限四则运算法则+两个重要极限；2.掌握导数定义及基本求导公式（复合函数、隐函数求导是重点）；3.通过10道选择题巩固易错点。\n学习链接：[极限与导数精讲](https://www.bilibili.com/video/BV1Eb411u7Fw/)（播放量超500万，讲解细致）；[导数分难点突破](https://www.bilibili.com/video/BV18u411S7jV/)（针对易错点解析）",
+                                en: "Review Method: 1. Recite limit arithmetic rules + two important limits; 2. Master derivative definition and basic formulas; 3. Consolidate with 10 multiple-choice questions.\nLearning Link: [Limits & Derivatives](https://www.bilibili.com/video/BV1Eb411u7Fw/) (5M+ views); [Differentiation Difficulties](https://www.bilibili.com/video/BV18u411S7jV/) (focus on common mistakes)"
+                            }
+                        },
+                        {
+                            zh: "微分方程（难点，20%时长）",
+                            en: "Differential Equations (Difficult, 20% Time)",
+                            priority: "middle",
+                            review: {
+                                zh: "复习方法：1.分类记忆一阶阶微分方程解法（可分离变量、线性方程）；2.重点点掌握二阶常系数线性微分方程通解公式；3.做2-3道应用题。\n学习链接：[微分方程入门到精通](https://www.bilibili.com/video/BV1qK411n7gQ/)（系统讲解各类类方程解法）；[微分方程应用题解析](https://www.bilibili.com/video/BV18u411S7jV/)（结合物理应用实例）",
+                                en: "Review Method: 1. Memorize first-order ODE solutions; 2. Master second-order linear ODE general solution; 3. Solve 2-3 application problems.\nLearning Link: [Differential Equations Complete Course](https://www.bilibili.com/video/BV1qK411n7gQ/) (comprehensive course); [ODE Applications](https://www.bilibili.com/video/BV18u411S7jV/) (with physics examples)"
+                            }
+                        },
+                        {
+                            zh: "错题复盘（巩固，10%时长）",
+                            en: "Mistake Review (Consolidation, 10% Time)",
+                            priority: "low",
+                            review: {
+                                zh: "复习方法：1.筛选近期30道错题，按“积分/极限/微分方程”分类；2.标注错误原因；3.重新做1遍错题，确保同类题不再错。\n学习链接：[高数错题整理方法](https://www.bilibili.com/video/BV1fA411j7cM/)（高效整理技巧）；[高数常见错误解析](https://www.bilibili.com/video/BV1ZK4y1b7bY/)（典型错误案例分析）",
+                                en: "Review Method: 1. Sort 30 recent wrong questions by topic; 2. Mark error reasons; 3. Retry wrong questions.\nLearning Link: [Math Mistake Organizing](https://www.bilibili.com/video/BV1fA411j7cM/) (effective sorting skills); [Common Math Errors](https://www.bilibili.com/video/BV1ZK4y1b7bY/) (typical error analysis)"
+                            }
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 5] : [2, 2]
+                },
+                // 大学英语（4个知识点，均使用B站链接）
+                english: {
+                    zh: "大学英语",
+                    en: "College English",
+                    knowledge: [
+                        {
+                            zh: "作文模板（提分快，35%时长）",
+                            en: "Essay Templates (Quick Score, 35% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.背诵3类模板（议论文：观点对比型/问题解决型；图表作文）；2.积累10个高频连接词；3.仿写1篇真题作文。\n学习链接：[四六级作文模板精讲](https://www.bilibili.com/video/BV1r44y1q74Q/)（含万能句型）；[高分作文技巧](https://www.bilibili.com/video/BV1xsXKYvEzW/)（阅卷老师视角分析）",
+                                en: "Review Method: 1. Recite 3 templates (argumentation, graph description); 2. Accumulate 10 linking words; 3. Imitate 1 real exam essay.\nLearning Link: [CET Essay Templates](https://www.bilibili.com/video/BV1r44y1q74Q/) (with universal sentence patterns); [High Score Essay Skills](https://www.bilibili.com/video/BV1xsXKYvEzW/) (from examiner's perspective)"
+                            }
+                        },
+                        {
+                            zh: "阅读技巧（高频题，30%时长）",
+                            en: "Reading Skills (High-Frequency, 30% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.掌握“题干定位法”；2.区分细节题/推理题/主旨题答题逻辑；3.限时做2篇真题阅读。\n学习链接：[四六级阅读满分技巧](https://www.bilibili.com/video/BV1fK41157Qe/)（定位法实战演示）；[阅读题型专项突破](https://www.bilibili.com/video/BV1xsXKYvEzW/)（分题型讲解技巧）",
+                                en: "Review Method: 1. Master \"question positioning\"; 2. Distinguish question types; 3. Do 2 timed reading exercises.\nLearning Link: [CET Reading Skills](https://www.bilibili.com/video/BV1fK41157Qe/) (positioning method demo); [Reading Question Types](https://www.bilibili.com/video/BV1xsXKYvEzW/) (type-specific skills)"
+                            }
+                        },
+                        {
+                            zh: "听力高频词（基础，20%时长）",
+                            en: "Listening High-Frequency Words (Basic, 20% Time)",
+                            priority: "middle",
+                            review: {
+                                zh: "复习方法：1.背诵“校园场景/日常生活/学术讲座”3类高频词；2.边听边写，强化音形对应；3.听1段真题听力。\n学习链接：[四六级听力高频词汇](https://www.bilibili.com/video/BV1a54y1Q7qV/)（分类记忆法）；[听力速记技巧](https://www.bilibili.com/video/BV1LK4y1h71Q/)（提高信息捕捉能力）",
+                                en: "Review Method: 1. Recite 150 high-frequency words; 2. Listen and write to link sound and spelling; 3. Listen to 1 real exam clip.\nLearning Link: [CET Listening Vocabulary](https://www.bilibili.com/video/BV1a54y1Q7qV/) (category-based memorization); [Listening Note-Taking](https://www.bilibili.com/video/BV1LK4y1h71Q/) (information capture skills)"
+                            }
+                        },
+                        {
+                            zh: "翻译句型（应用，15%时长）",
+                            en: "Translation Sentence Patterns (Application, 15% Time)",
+                            priority: "low",
+                            review: {
+                                zh: "复习方法：1.掌握5个基础句型；2.积累10个中国文化相关词汇；3.翻译2个短句。\n学习链接：[四六级翻译高分技巧](https://www.bilibili.com/video/BV1fK41157Qd/)（句型转换方法）；[文化类翻译专项](https://www.bilibili.com/video/BV1Vv411r7nP/)（中国特色词汇翻译）",
+                                en: "Review Method: 1. Master 5 basic sentence patterns; 2. Accumulate 10 Chinese culture words; 3. Translate 2 short sentences.\nLearning Link: [CET Translation Skills](https://www.bilibili.com/video/BV1fK41157Qd/) (sentence pattern conversion); [Culture Translation](https://www.bilibili.com/video/BV1Vv411r7nP/) (Chinese-specific vocabulary)"
+                            }
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [2, 3] : [1, 1]
+                },
+                // 大学物理（4个知识点，均使用B站链接）
+                physics: {
+                    zh: "大学物理",
+                    en: "College Physics",
+                    knowledge: [
+                        {
+                            zh: "力学（公式多，40%时长）",
+                            en: "Mechanics (Many Formulas, 40% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.整理力学核心公式；2.重点突破“质点运动学”和“刚体转动”计算题；3.分析1道力学综合题。\n学习链接：[大学物理力学精讲](https://www.bilibili.com/video/BV1qv411q7zE/)（分步骤讲解）；[力学综合题解题技巧](https://www.bilibili.com/video/BV1Wb411i7nD/)（难题拆解方法）",
+                                en: "Review Method: 1. Organize core mechanics formulas; 2. Focus on particle kinematics and rigid body rotation; 3. Analyze 1 comprehensive problem.\nLearning Link: [College Physics Mechanics](https://www.bilibili.com/video/BV1qv411q7zE/) (step-by-step explanation); [Mechanics Problem Skills](https://www.bilibili.com/video/BV1Wb411i7nD/) (problem breakdown methods)"
+                            }
+                        },
+                        {
+                            zh: "电磁学（难点，35%时长）",
+                            en: "Electromagnetism (Difficult, 35% Time)",
+                            priority: "middle",
+                            review: {
+                                zh: "复习方法：1.区分电场和磁场的基本概念；2.掌握高斯定理和安培环路定理的应用；3.做1道电磁学综合题。\n学习链接：[电磁学基础精讲](https://www.bilibili.com/video/BV1Wb411i7nD/)（从基础到进阶）；[电磁学公式推导与应用](https://www.bilibili.com/video/BV1JJ411x7hF/)（公式推导到与例题）",
+                                en: "Review Method: 1. Distinguish electric and magnetic field concepts; 2. Master Gauss's and Ampère's laws; 3. Solve 1 comprehensive problem.\nLearning Link: [Electromagnetism Basics](https://www.bilibili.com/video/BV1Wb411i7nD/) (from basics to advanced); [Electromagnetism Formulas](https://www.bilibili.com/video/BV1JJ411x7hF/) (derivations and examples)"
+                            }
+                        },
+                        {
+                            zh: "波动光学（基础，15%时长）",
+                            en: "Wave Optics (Basic, 15% Time)",
+                            priority: "low",
+                            review: {
+                                zh: "复习方法：1.理解光的干涉和衍射条件；2.记忆干涉条纹间距公式；3.做1道选择题。\n学习链接：[波动光学入门](https://www.bilibili.com/video/BV1fA411j7cM/)（概念讲解）；[干涉与衍射实验解析](https://www.bilibili.com/video/BV18u411S7jV/)（实验验现象与现象）",
+                                en: "Review Method: 1. Understand interference and diffraction conditions; 2. Memorize fringe spacing formulas; 3. Do 1 multiple-choice question.\nLearning Link: [Wave Optics Introduction](https://www.bilibili.com/video/BV1fA411j7cM/) (concept explanation); [Interference Experiments Diff](https://www.bilibili.com/video/BV18u411S7jV/) (experiments and principles)"
+                            }
+                        },
+                        {
+                            zh: "实验题思路（应用，10%时长）",
+                            en: "Experimental Problem Ideas (Application, 10% Time)",
+                            priority: "low",
+                            review: {
+                                zh: "复习方法：1.梳理理常考实验；2.掌握握实验误差分析方法；3.默写1个实验的步骤。\n学习链接：[大学物理实验讲解](https://www.bilibili.com/video/BV1JJ411x7hF/)（常考实验详解）；[实验误差误差分析与数据处理](https://www.bilibili.com/video/BV18u411S7jV/)（误差分析技巧）",
+                                en: "Review Method: 1. Sort key experiments; 2. Master error analysis; 3. Write down 1 experiment's steps.\nLearning Link: [Physics Experiments](https://www.bilibili.com/video/BV1JJ411x7hF/) (key experiment explanations); [Error Analysis](https://www.bilibili.com/video/BV18u411S7jV/) (error analysis skills)"
+                            }
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 4] : [2, 2]
+                },
+                // 计算机C++（4个知识点，均使用B站链接）
+                cpp: {
+                    zh: "计算机C++",
+                    en: "Computer C++",
+                    knowledge: [
+                        {
+                            zh: "函数与指针针（重点，35%时长）",
+                            en: "Functions & Pointers (Key, 35% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.掌握函数定义/调用/参数传递；2.理解指针本质，练习指针与数组的结合；3.编写1个排序小程序。\n学习链接：[C++函数与指针精讲](https://www.bilibili.com/video/BV1et411b73Z/)（基础到进阶）；[指针与数组实战战](https://www.bilibili.com/video/BV1dy4y1C7sB/)（实例讲解）",
+                                en: "Review Method: 1. Master function definition/call/parameter passing; 2. Understand pointers and array-pointer combination; 3. Write a sorting program.\nLearning Link: [C++ Functions与Pointers](https://www.bilibili.com/video/BV1et411b73Z/) (basics to advanced); [Pointers & Arrays](https://www.bilibili.com/video/BV1dy4y1C7sB/) (practical examples)"
+                            }
+                        },
+                        {
+                            zh: "编程题刷题（高频题型，30%时长）",
+                            en: "Programming Problems (High-Frequency, 30% Time)",
+                            priority: "high",
+                            review: {
+                                zh: "复习方法：1.分类刷题；2.重点点突破冒泡排序/斐波那契数列/素数判断；3.每道题先写思路再写代码。\n学习链接：[C++编程题型精讲](https://www.bilibili.com/video/BV1fK41157Qe/)（高频考分类类讲解）；[期末考题题解步骤](https://www.bilibili.com/video/BV1LK4y1h71Q/)（思路分析）",
+                                en: "Review Method: 1. Practice by topic; 2. Focus on bubble sort/Fibonacci/prime judgment; 3. Write idea first, then code.\nLearning Link: [C++ Problem Types](https://www.bilibili.com/video/BV1fK41157Qe/) (category categorization); [Problem-Solving Steps](https://www.bilibili.com/video/BV1LK4y1h71Q/) (thought process)"
+                            }
+                        },
+                        {
+                            zh: "语法基础（变量/循环，25%时长）",
+                            en: "Syntax Basics (Variables/Loops, 25% Time)",
+                            priority: "middle",
+                            review: {
+                                zh: "复习方法：1.梳理C++基本数据类型；2.掌握for/while/do-while循环区别；3.排查常见语法错误。\n学习链接：[C++语法基础](https://www.bilibili.com/video/BV1a54y1Q7qV/)（零基础础语法讲解）；[常见语法错误解析](https://www.bilibili.com/video/BV1Vv411r7nQ/)（避避坑指南）",
+                                en: "Review Method: 1. Sort basic data types; 2. Master loop differences; 3. Check common syntax errors.\nLearning Link: [C++ Syntax Basics](https://www.bilibili.com/video/BV1a54y1Q7qV/) (basic syntax); [Common Syntax Errors](https://www.bilibili.com/video/BV1Vv411r7nQ/) (mistake avoidance)"
+                            }
+                        },
+                        {
+                            zh: "代码调试技巧（实用，10%时长）",
+                            en: "Code Debugging Skills (Practical, 10% Time)",
+                            priority: "low",
+                            review: {
+                                zh: "复习方法：1.学习使用cout语句语句中间中间变量；2.掌握单步调试和断点调试；3.调试1段错误代码。\n学习链接：[VSCode调试教程](https://www.bilibili.com/video/BV1dy4y1C7sB/)（工具使用）；[C++调试技巧技巧](https://www.bilibili.com/video/BV1et411b73Z/)（错误定位方法）",
+                                en: "Review Method: 1. Learn to print intermediate values; 2. Master step-by-step and breakpoint debugging; 3. Debug 1 error-containing code.\nLearning Link: [VSCode Debugging](https://www.bilibili.com/video/BV1dy4y1C7sB/) (tool usage); [C++ Debugging Skills](https://www.bilibili.com/video/BV1et411b73Z/) (debugging methods)"
+                            }
+                        }
+                    ],
+                    duration: (totalDays) => totalDays >= 5 ? [3, 4] : [2, 2]
+                }
+            },
+            // 固定复习时段（双语）
+            timeSlots: [
+                { zh: "09:00 - 11:30（精力旺盛期，适合学难点）", en: "09:00 - 11:30 (High Energy, for Difficult Topics)" },
+                { zh: "14:00 - 16:30（专注力稳定期，适合刷题）", en: "14:00 - 16:30 (Stable Focus, for Practice)" },
+                { zh: "19:00 - 21:00（复盘巩固期，适合错题/记忆）", en: "19:00 - 21:00 (Review Period, for Mistakes/Memory)" }
+            ]
+        };
+
+        // 2. 全局状态：当前语言（默认中文）
+        let currentLang = "zh";
+
+        // 3. 双语切换函数：同步所有文本+已生成的计划
+        function switchLang() {
+            currentLang = currentLang === "zh" ? "en" : "zh";
+            // 切换语言按钮文本
+            const langBtn = document.getElementById("langSwitch");
+            langBtn.textContent = currentLang === "zh" ? "Switch to English" : "切换到中文";
+
+            // 切换页面所有双语文本（标题、标签、按钮）
+            document.querySelectorAll("[data-zh], [data-en]").forEach(el => {
+                if (el.hasAttribute("data-zh") && el.hasAttribute("data-en")) {
+                    el.textContent = el.getAttribute(`data-${currentLang}`);
+                }
+                // 切换输入框/选择框占位符
+                if (el.hasAttribute("data-zh-placeholder") && el.hasAttribute("data-en-placeholder")) {
+                    el.placeholder = el.getAttribute(`data-${currentLang}-placeholder`);
+                }
+            });
+
+            // 若已生成计划，重新渲染（同步双语+复习指南）
+            const planResult = document.getElementById("planResult");
+            if (planResult.style.display !== "none") {
+                const studyDays = document.getElementById("studyDays").value;
+                const subjects = Array.from(document.getElementById("subjects").selectedOptions).map(opt => opt.value);
+                generatePlan(studyDays, subjects);
+            }
+        }
+
+        // 4. 核心函数：生成按重要性排序的复习计划
+        function generatePlan(studyDays, subjects) {
+            // 输入校验
+            if (!studyDays || subjects.length === 0) {
+                const alertMsg = currentLang === "zh"
+                    ? "请输入复习天数并选择至少一门科目！"
+                    : "Please enter study days and select at least one subject!";
+                alert(alertMsg);
+                return;
+            }
+            studyDays = parseInt(studyDays);
+            const planContent = document.getElementById("planContent");
+            planContent.innerHTML = ""; // 清空之前的计划
+
+            // 步骤1：计算每科分配的天数（难科多分配1天）
+            const subjectDays = {};
+            const totalSubjects = subjects.length;
+            const hardSubjects = ["math", "physics", "cpp"]; // 难科：高数、物理、C++
+            const baseDays = Math.floor(studyDays / totalSubjects);
+            let remainingDays = studyDays - (baseDays * totalSubjects);
+
+            // 分配天数：难科优先获得剩余天数
+            subjects.forEach(subj => {
+                subjectDays[subj] = baseDays;
+                if (remainingDays > 0 && hardSubjects.includes(subj)) {
+                    subjectDays[subj] += 1;
+                    remainingDays -= 1;
+                }
+            });
+
+            // 步骤2：按复习天数筛选知识点（核心逻辑：天数越少，只保留越高重要性）
+            function getFilteredKnowledge(knowledgeList, days) {
+                let priorityFilter = ["high", "middle", "low"]; // 天数充裕（≥3天）：全保留
+                if (days === 1) priorityFilter = ["high"]; // 天数紧张（1天）：只保留高重要性
+                if (days === 2) priorityFilter = ["high", "middle"]; // 天数中等（2天）：保留高+中
+
+                // 筛选后按重要性排序（高→中→低）
+                return knowledgeList
+                    .filter(item => priorityFilter.includes(item.priority))
+                    .sort((a, b) => {
+                        const priorityOrder = { high: 0, middle: 1, low: 2 };
+                        return priorityOrder[a.priority] - priorityOrder[b.priority];
+                    });
+            }
+
+            // 步骤3：生成每日计划卡片（含时段、知识点、复习指南）
+            let currentDay = 1;
+            subjects.forEach(subj => {
+                const days = subjectDays[subj];
+                const subjectInfo = langData.subjects[subj];
+                const filteredKnowledge = getFilteredKnowledge(subjectInfo.knowledge, days);
+                const timeSlots = langData.timeSlots;
+                const knowledgePerDay = Math.ceil(filteredKnowledge.length / days); // 每天分配的知识点数
+                let knowledgeIndex = 0;
+
+                // 为当前科目生成每一天的计划
+                for (let d = 0; d < days; d++) {
+                    if (currentDay > studyDays) break; // 超出总天数则停止
+
+                    // 1. 创建每日计划卡片
+                    const dayCard = document.createElement("div");
+                    dayCard.className = "day-card";
+
+                    // 2. 每日标题（天数+科目）
+                    const dayTitle = document.createElement("h3");
+                    dayTitle.className = "text-xl font-semibold mb-2";
+                    dayTitle.textContent = currentLang === "zh"
+                        ? `第${currentDay}天：${subjectInfo.zh}（今日重点：${filteredKnowledge[knowledgeIndex]?.zh.split("（")[0] || "基础巩固"}）`
+                        : `Day ${currentDay}: ${subjectInfo.en} (Today's Focus: ${filteredKnowledge[knowledgeIndex]?.en.split(" (")[0] || "Basic Consolidation"})`;
+                    dayCard.appendChild(dayTitle);
+
+                    // 3. 生成时段+知识点列表
+                    const timeList = document.createElement("ul");
+                    timeList.className = "list-disc pl-5 space-y-2 mb-4";
+
+                    timeSlots.forEach((slot, slotIdx) => {
+                        if (knowledgeIndex >= filteredKnowledge.length) knowledgeIndex = 0;
+                        const knowledge = filteredKnowledge[knowledgeIndex];
+
+                        // 知识点列表项（含重要性颜色）
+                        const listItem = document.createElement("li");
+                        listItem.className = `priority-${knowledge.priority}`;
+                        listItem.textContent = `${slot[currentLang]} - ${knowledge[currentLang]}`;
+                        timeList.appendChild(listItem);
+
+                        // 4. 复习指南（每个知识点对应1个指南，默认折叠，点击展开）
+                        const reviewGuide = document.createElement("div");
+                        reviewGuide.className = "review-guide mt-2";
+                        reviewGuide.style.display = "none"; // 默认折叠
+
+                        // 拆分复习方法和链接（换行显示）
+                        const reviewText = knowledge.review[currentLang].replace(/\n/g, "<br><br>");
+                        reviewGuide.innerHTML = `<strong>${currentLang === "zh" ? "复习指南：" : "Review Guide:"}</strong><br><br>${reviewText}`;
+
+                        // 点击知识点展开/折叠复习指南
+                        listItem.addEventListener("click", () => {
+                            reviewGuide.style.display = reviewGuide.style.display === "none" ? "block" : "none";
+                        });
+
+                        timeList.appendChild(reviewGuide);
+                        knowledgeIndex++;
+                    });
+
+                    dayCard.appendChild(timeList);
+                    planContent.appendChild(dayCard);
+                    currentDay++;
+                }
+            });
+
+            // 显示计划结果，启用下载/复制按钮
+            document.getElementById("planResult").style.display = "block";
+            document.getElementById("downloadPDF").disabled = false;
+            document.getElementById("copyPlan").disabled = false;
+        }
+
+        // 5. PDF下载函数（支持长计划分页，保留重要性颜色和复习指南）
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF("portrait", "mm", "a4");
+            const planResult = document.getElementById("planResult");
+
+            // 先展开所有复习指南（确保PDF中显示完整）
+            document.querySelectorAll(".review-guide").forEach(guide => {
+                guide.style.display = "block";
+            });
+
+            // 将网页转为图片，再生成PDF
+            html2canvas(planResult, {
+                scale: 2, // 提高PDF清晰度
+                useCORS: true, // 解决跨域图片问题
+                logging: false
+            }).then(canvas => {
+                const imgData = canvas.toDataURL("image/jpeg", 1.0);
+                const imgWidth = 210; // A4宽度（mm）
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                // 处理长计划分页（避免内容超出A4页）
+                doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+                heightLeft -= 297; // A4高度（mm）
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    doc.addPage();
+                    doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+                    heightLeft -= 297;
+                }
+
+                // 双语文件名（含日期）
+                const date = new Date().toLocaleDateString().replace(/\//g, "-");
+                const fileName = currentLang === "zh"
+                    ? `期末复习计划_${date}_按重要性排序.pdf`
+                    : `Final_Study_Plan_${date}_Priority_Sorted.pdf`;
+                doc.save(fileName);
+
+                // 下载后折叠复习指南（恢复页面状态）
+                document.querySelectorAll(".review-guide").forEach(guide => {
+                    guide.style.display = "none";
+                });
+            });
+        }
+
+        // 6. 复制清单函数（含重要性标记和复习要点）
+        function copyPlan() {
+            const planContent = document.getElementById("planContent");
+            const studyDays = document.getElementById("studyDays").value;
+            const subjects = Array.from(document.getElementById("subjects").selectedOptions).map(opt => opt.textContent);
+
+            // 复制文本开头（双语说明）
+            let copyText = currentLang === "zh"
+                ? `期末复习计划（共${studyDays}天，按重要性排序）\n科目：${subjects.join("、")}\n\n重要性标记：【高】=高频考点，【中】=基础必学，【低】=拓展内容\n\n`
+                : `Final Study Plan (Total ${studyDays} Days, Sorted by Priority)\nSubjects: ${subjects.join(", ")}\n\nPriority Marks: [High]=Key Topics, [Middle]=Basic, [Low]=Extended\n\n`;
+
+            // 提取每日计划内容（含知识点+复习要点）
+            planContent.querySelectorAll(".day-card").forEach(card => {
+                // 每日标题
+                const dayTitle = card.querySelector("h3").textContent;
+                copyText += `${dayTitle}\n`;
+
+                // 每日知识点+复习要点
+                const listItems = card.querySelectorAll("li");
+                listItems.forEach((item, idx) => {
+                    // 提取重要性标记
+                    let priorityMark = "";
+                    if (item.classList.contains("priority-high")) priorityMark = currentLang === "zh" ? "【高】" : "[High] ";
+                    if (item.classList.contains("priority-middle")) priorityMark = currentLang === "zh" ? "【中】" : "[Middle] ";
+                    if (item.classList.contains("priority-low")) priorityMark = currentLang === "zh" ? "【低】" : "[Low] ";
+
+                    // 知识点文本
+                    const knowledgeText = item.textContent;
+                    copyText += `- ${priorityMark}${knowledgeText}\n`;
+
+                    // 复习要点（简化提取，保留核心）
+                    const reviewGuide = item.nextElementSibling;
+                    if (reviewGuide && reviewGuide.classList.contains("review-guide")) {
+                        const reviewText = reviewGuide.innerText
+                            .replace(currentLang === "zh" ? "复习指南：" : "Review Guide:", "")
+                            .split(/\n{2,}/)[0] // 只保留复习方法（去掉链接部分）
+                            .trim();
+                        copyText += `  复习要点：${reviewText}\n\n`;
+                    }
+                });
+                copyText += "\n";
+            });
+
+            // 复制到剪贴板
+            navigator.clipboard.writeText(copyText).then(() => {
+                const successMsg = currentLang === "zh"
+                    ? "复习清单已复制到剪贴板！可粘贴到笔记或文档中。"
+                    : "Study list copied to clipboard! You can paste it into notes or documents.";
+                alert(successMsg);
+            }).catch(err => {
+                const errorMsg = currentLang === "zh"
+                    ? "复制失败，请手动选中内容复制！"
+                    : "Copy failed, please select the content manually!";
+                alert(errorMsg);
+                console.error("Copy error:", err);
+            });
+        }
+
+        // 7. 绑定事件监听（生成、下载、复制、语言切换）
+        document.getElementById("langSwitch").addEventListener("click", switchLang);
+        document.getElementById("generatePlan").addEventListener("click", () => {
+            const studyDays = document.getElementById("studyDays").value;
+            const subjects = Array.from(document.getElementById("subjects").selectedOptions).map(opt => opt.value);
+            generatePlan(studyDays, subjects);
+        });
+        document.getElementById("downloadPDF").addEventListener("click", downloadPDF);
+        document.getElementById("copyPlan").addEventListener("click", copyPlan);
+    </script>
+</body>
+</html>
