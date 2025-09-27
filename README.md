@@ -8,7 +8,7 @@
 
 ## 安装
 # 克隆仓库
-git clone https://github.com/ZhuoGLx/Kernel-ridge-regression.git
+git clone [https://github.com/ZhuoGLx/Kernel-ridge-regression.git](https://github.com/Group-B-gogogo/Kernel-ridge-regression.git)
 cd kernel-ridge-regression
 
 # 安装依赖
